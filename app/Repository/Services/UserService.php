@@ -51,7 +51,7 @@ class UserService
         try {
             return JWTAuth::refresh(JWTAuth::getToken());
         } catch (TokenBlacklistedException $exception) {
-            throw new GeneralException(GeneralException::M_UNKNOWN, GeneralException::UNKNOWN_ERROR);
+            throw new GeneralException(GeneralException::M_UNKNOWN, 701);
         }
     }
 

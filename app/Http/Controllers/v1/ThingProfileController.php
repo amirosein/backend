@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1;
 
+use App\Exceptions\GeneralException;
 use App\Repository\Helper\Counter;
 use App\Repository\Helper\Response;
 use App\Repository\Services\LoraService;
@@ -33,6 +34,7 @@ class ThingProfileController extends Controller
     /**
      * @param Request $request
      * @return array
+     * @throws GeneralException
      * @throws LoraException
      */
     public function create(Request $request)
@@ -40,11 +42,14 @@ class ThingProfileController extends Controller
         $id = Counter::thingProfile();
         $user = Auth::user();
         $data = $this->prepareDeviceProfileData(collect($request->all()));
+        if (!$request->get('name'))
+            throw new GeneralException('لطفا نام پروفایل شی را وارد کنید', GeneralException::VALIDATION_ERROR);
         $device_profile_id = $this->loraService->postDeviceProfile(collect($data))->deviceProfileID;
         $thing_profile = ThingProfile::create([
             'thing_profile_slug' => $id,
             'device_profile_id' => $device_profile_id,
             'data' => $data,
+            'name' => $request->get('name'),
             'type' => $request->get('supportsJoin') === '1' ? 'OTAA' : 'ABP',
             'user_id' => $user['_id'],
         ]);
@@ -110,8 +115,8 @@ class ThingProfileController extends Controller
                     'rxDelay1' => (int)$data->get('rxDelay1', 0),
                     'rxFreq2' => (int)$data->get('rxFreq2', 0),
                     'supports32bitFCnt' => $data->get('supports32bitFCnt') ? true : false,
-                    'supportsClassB' => $data->get('supportsClassB') ? true : false,
-                    'supportsClassC' => $data->get('supportsClassC') ? true : false,
+                    'supportsClassB' => $data->get('supportsClassB') == 'true' ? true : false,
+                    'supportsClassC' => $data->get('supportsClassC') == 'true' ? true : false,
                     'supportsJoin' => $data->get('supportsJoin') === '1' ? true : false
                 ],
                 'name' => $data->get('name'),

@@ -60,4 +60,17 @@ class CodecService
         $codec->save();
         return $codec;
     }
+
+    /**
+     * @param Request $request
+     * @param Codec $codec
+     * @return Codec
+     */
+    public function updateCodec(Request $request, Codec $codec)
+    {
+        $codec->name = $request->get('name');
+        $codec->code = $request->get('code');
+        $codec->save();
+        return $codec;
+    }
 }

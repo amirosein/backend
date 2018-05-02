@@ -27,8 +27,9 @@ class CodecController extends Controller
         $this->middleware('can:update,project')->only(['create']);
         $this->middleware('can:view,project')->only(['list']);
         $this->middleware('can:update,thing')->only(['send']);
-        $this->middleware('can:view,thing')->only(['get']);
+        $this->middleware('can:view,thing')->only(['getThing']);
         $this->middleware('can:delete,codec')->only(['delete']);
+        $this->middleware('can:view,codec')->only(['get']);
     }
 
     /**
@@ -46,11 +47,10 @@ class CodecController extends Controller
 
 
     /**
-     * @param Project $project
      * @param Thing $thing
      * @param Request $request
      * @return array
-     * @throws \App\Exceptions\GeneralException
+     * @throws GeneralException
      */
     public function send(Thing $thing, Request $request)
     {
@@ -68,7 +68,7 @@ class CodecController extends Controller
      * @param Request $request
      * @return array
      */
-    public function get(Project $project, Thing $thing, Request $request)
+    public function getThing(Project $project, Thing $thing, Request $request)
     {
         $codec = $thing->codec;
         return Response::body(compact('codec'));
@@ -95,6 +95,31 @@ class CodecController extends Controller
     {
         $codec->delete();
         return Response::body(['success' => true]);
+    }
+
+    /**
+     * @param Project $project
+     * @param Codec $codec
+     * @return array
+     * @throws \Exception
+     */
+    public function get(Project $project, Codec $codec)
+    {
+        return Response::body(compact('codec'));
+    }
+
+    /**
+     * @param Project $project
+     * @param Codec $codec
+     * @param Request $request
+     * @return array
+     * @throws GeneralException
+     */
+    public function update(Project $project, Codec $codec, Request $request)
+    {
+        $this->codecService->validateCreateCodec($request);
+        $codec = $this->codecService->updateCodec($request, $codec);
+        return Response::body(compact('codec'));
     }
 
 }

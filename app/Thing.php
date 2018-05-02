@@ -16,7 +16,9 @@ use Illuminate\Database\Eloquent\Model;
 class Thing extends Eloquent
 {
 
-    protected $appends = ['last_seen_at'];
+    protected $appends = ['last_seen_at', 'keys', 'owner'];
+    protected $lora_thing;
+    protected $lora_activation;
 
     /**
      * The attributes that are mass assignable.
@@ -66,10 +68,21 @@ class Thing extends Eloquent
         return $value;
     }
 
+    public function getOwnerAttribute($value)
+    {
+        foreach ($this->permissions as $permissions)
+            if ($permissions['name'] == 'THING-OWNER')
+                return $permissions['user'];
+        return null;
+    }
+
     public function getLastSeenAtAttribute($value)
     {
-        $loraService = resolve('App\Repository\Services\LoraService');
-        $time = $loraService->getDevice($this->dev_eui)->lastSeenAt;
+        if (!$this->lora_thing) {
+            $loraService = resolve('App\Repository\Services\LoraService');
+            $this->lora_thing = $loraService->getDevice($this->dev_eui);
+        }
+        $time = $this->lora_thing->lastSeenAt;
         $status = 'green';
         if (Carbon::now()->subSecond(2 * $this->period) > $time)
             $status = 'orange';
@@ -78,5 +91,21 @@ class Thing extends Eloquent
         if (Carbon::now()->subSecond(4 * $this->period) > $time)
             $status = 'gray';
         return ['status' => $status, 'time' => $time ? (string)lora_time($time) : ''];
+    }
+
+    public function getKeysAttribute()
+    {
+        if ($this->type == 'ABP')
+            return isset($this->attributes['keys']) ? $this->attributes['keys'] : [];
+        try {
+            if (!$this->lora_activation) {
+                $loraService = resolve('App\Repository\Services\LoraService');
+                $this->lora_activation = $loraService->getActivation($this->dev_eui);
+            }
+            return array_merge(json_decode(json_encode($this->lora_activation, true)), $this->attributes['keys']);
+        } catch (\Exception $e) {
+            return isset($this->attributes['keys']) ? $this->attributes['keys'] : [];
+        }
+
     }
 }

@@ -23,6 +23,14 @@ trait RegisterUser
      */
     public function insertUser(Request $request)
     {
+        return User::create([
+            'legal' => $request->get('legal') ? true : false,
+            'active' => false,
+            'name' => $request->get('name'),
+            'email' => $request->get('email'),
+            'password' => bcrypt($request->get('password')),
+        ]);
+        // Todo delete
         if ($request->has('legal') && $request->get('legal') == 1) {
             return $this->insertLegalUser($request);
         } else {
@@ -37,6 +45,24 @@ trait RegisterUser
      */
     public function validateRegisterUser(Request $request)
     {
+        $messages = [
+            'email.required' => 'لطفا ایمیل را وارد کنید',
+            'email.email' => 'لطفا ایمیل را درست وارد کنید',
+            'email.unique' => 'این ایمیل قبلا ثبت شده است',
+            'password.required' => 'لطفا رمزعبور را وارد کنید',
+            'password.min' => 'رمز عبور حداقل باید ۶ کارکتر باشد',
+        ];
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:6',
+        ], $messages);
+
+        if ($validator->fails())
+            throw new GeneralException($validator->errors()->first(), GeneralException::VALIDATION_ERROR);
+        return;
+        // Todo delete
         if ($request->has('legal') && $request->get('legal') == 1) {
             $this->validateRegisterLegal($request);
         } else {
@@ -45,6 +71,7 @@ trait RegisterUser
 
     }
 
+    // Todo delete
     private function validateRegisterReal(Request $request)
     {
         $messages = [
@@ -67,6 +94,7 @@ trait RegisterUser
             throw new GeneralException($validator->errors()->first(), GeneralException::VALIDATION_ERROR);
     }
 
+    // Todo delete
     private function validateRegisterLegal(Request $request)
     {
         $messages = [
@@ -106,7 +134,7 @@ trait RegisterUser
             throw new GeneralException($validator->errors()->first(), GeneralException::VALIDATION_ERROR);
     }
 
-
+    // Todo delete
     private function insertRealUser(Request $request)
     {
         MobileFactory::sendWelcome($request->get('mobile'));
@@ -121,6 +149,7 @@ trait RegisterUser
         ]);
     }
 
+    // Todo delete
     private function insertLegalUser(Request $request)
     {
         return User::create([

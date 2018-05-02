@@ -41,7 +41,7 @@ class Project extends Eloquent
 
     public function things()
     {
-        return $this->hasMany(Thing::class)->with('user');
+        return $this->hasMany(Thing::class);
     }
 
     public function scenarios()

@@ -12,6 +12,7 @@ use App\Exceptions\GeneralException;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 trait UpdateUser
@@ -31,11 +32,17 @@ trait UpdateUser
         }
     }
 
-    /**
-     * @param Request $request
-     * @return void
-     * @throws GeneralException
-     */
+    public function changePassword(Request $request)
+    {
+        $user = Auth::user();
+        if ($request->get('new_password') && Hash::check($request->get('password'), $user['password']))
+            $user['password'] = Hash::make($request->get('new_password'));
+        else
+            throw new GeneralException('اطلاعات را درست وارد کنید', GeneralException::VALIDATION_ERROR);
+        $user->save();
+        return $user;
+    }
+
     public function validateUpdateUser(Request $request)
     {
         if ($request->has('legal') && $request->get('legal') == 1) {
@@ -101,12 +108,15 @@ trait UpdateUser
     private function updateRealUser(Request $request)
     {
         $user = Auth::user();
-        if ($request->get('password')) {
-            $user->password = bcrypt($request->get('password'));
-        }
 
         if ($request->get('name')) {
             $user->name = $request->get('name');
+        }
+        if ($request->get('mobile')) {
+            $user->mobile = $request->get('mobile');
+        }
+        if ($request->get('phone')) {
+            $user->phone = $request->get('phone');
         }
 
         $updated_other_info = json_decode($request->get('other_info'), true) ?: [];
@@ -125,9 +135,6 @@ trait UpdateUser
     private function updateLegalUser(Request $request)
     {
         $user = Auth::user();
-        if ($request->get('password')) {
-            $user->password = bcrypt($request->get('password'));
-        }
 
         $updated_other_info = $request->only([
             'org_interface_name',
@@ -150,4 +157,6 @@ trait UpdateUser
 
         return $user;
     }
+
+
 }

@@ -14,6 +14,7 @@ use App\Thing;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Excel;
 
 class ProjectController extends Controller
 {
@@ -110,6 +111,56 @@ class ProjectController extends Controller
         $things = $project->things()->get();
         return Response::body(compact('things'));
     }
+
+    /**
+     * @param Project $project
+     * @param Excel $excel
+     * @return array
+     * @throws \Maatwebsite\Excel\Exceptions\LaravelExcelException
+     */
+    public function exportThings(Project $project, Excel $excel)
+    {
+        $things = $project->things()->with('profile')->get();
+        $res = [[
+            'operation',
+            'name',
+            'type',
+            'description',
+            'lat',
+            'long',
+            'period',
+            'devEUI',
+            'thing_profile_slug',
+            'appSKey',
+            'nwkSKey',
+            'devAddr'
+        ]];
+        $res = array_merge($res, $things->map(function ($item) {
+            return [
+                'add',
+                $item['name'],
+                'lora',
+                $item['description'],
+                $item['loc']['coordinates'][0],
+                $item['loc']['coordinates'][1],
+                $item['period'],
+                $item['dev_eui'],
+                $item['profile']['thing_profile_slug'],
+                isset($item['keys']) ? ($item['type'] == 'ABP' ? $item['keys']['appSKey'] : $item['keys']['appKey']) : '',
+                isset($item['keys']) && $item['type'] == 'ABP' ? $item['keys']['nwkSKey'] : '',
+                isset($item['keys']) && $item['type'] == 'ABP' ? $item['keys']['devAddr'] : '',
+            ];
+        })->toArray());
+
+        return response($excel->create('things.csv', function ($excel) use ($res) {
+            $excel->sheet('Things', function ($sheet) use ($res) {
+                $sheet->fromArray($res, null, 'A1', false, false);
+            });
+        })->string('csv'))
+            ->header('Content-Disposition', 'attachment; filename="things.csv.csv"')
+            ->header('Content-Type', 'application/csv; charset=UTF-8');
+    }
+
 
     /**
      * @param Project $project

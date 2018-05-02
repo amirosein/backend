@@ -31,9 +31,11 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
 
     Route::group(['prefix' => 'user', 'middleware' => ['auth.jwt']], function () {
         Route::patch('/update', 'UserController@update');
+        Route::post('/password', 'UserController@changePassword');
         Route::get('/', 'UserController@profile');
         Route::post('/upload', 'UserController@upload');
         Route::post('/widget/charts', 'UserController@setWidgetChart');
+        Route::delete('/widget/charts', 'UserController@deleteWidgetChart');
         Route::get('/dashboard', 'UserController@dashboard');
     });
 
@@ -44,6 +46,7 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
         Route::delete('/{project}', 'ProjectController@stop');
         Route::get('/{project}', 'ProjectController@get');
         Route::get('/{project}/things', 'ProjectController@things');
+        Route::get('/{project}/things/export', 'ProjectController@exportThings');
         Route::post('/{project}/aliases', 'ProjectController@aliases');
 
         Route::post('/{project}/lint', 'ProjectController@lint');
@@ -63,6 +66,8 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
             Route::post('/', 'CodecController@create');
             Route::get('/', 'CodecController@list');
             Route::delete('/{codec}', 'CodecController@delete');
+            Route::patch('/{codec}', 'CodecController@update');
+            Route::get('/{codec}', 'CodecController@get');
         });
 
 
@@ -86,7 +91,7 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
         Route::post('/{thing}/send', 'DownLinkController@sendThing');
 
         Route::post('/{thing}/codec', 'CodecController@send');
-        Route::get('/{thing}/codec', 'CodecController@get');
+        Route::get('/{thing}/codec', 'CodecController@getThing');
     });
 
     Route::group(['prefix' => 'thing-profile', 'middleware' => ['auth.jwt']], function () {

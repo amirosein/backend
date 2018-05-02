@@ -44,7 +44,6 @@ class UserController extends Controller
     /**
      * @param Request $request
      * @return array
-     * @throws \App\Exceptions\GeneralException
      */
     public function update(Request $request)
     {
@@ -55,6 +54,19 @@ class UserController extends Controller
 
         return Response::body(compact('user'));
     }
+
+
+    /**
+     * @param Request $request
+     * @return array
+     * @throws \App\Exceptions\GeneralException
+     */
+    public function changePassword(Request $request)
+    {
+        $this->userService->changePassword($request);
+        return Response::body(['success' => true]);
+    }
+
 
     /**
      * @return array
@@ -95,13 +107,15 @@ class UserController extends Controller
         $charts = collect($config['widgets'])->map(function ($widget) {
             try {
                 $thing = Thing::where('dev_eui', $widget['devEUI'])->first();
+                $since = Carbon::now()->subMinute((int)$widget['window'])->getTimestamp();
+                $until = Carbon::now()->getTimestamp();
                 return [
+                    'title' => $widget['title'],
                     'thing' => $thing,
-                    'data' => $this->coreService->thingData($thing,
-                        $widget['since'],
-                        $widget['until'] ?: Carbon::now()->getTimestamp()
-                    )
-                ];
+                    'data' => collect($this->coreService->thingData($thing, $since, $until))->map(function ($data) use ($widget) {
+                        $data = json_decode(json_encode($data), True);
+                        return ['timestamp' => $data['timestamp'], 'value' => $data['data'][$widget['key']]];
+                    })];
             } catch (\Error $e) {
                 return [];
             } catch (\Exception $e) {
@@ -109,7 +123,7 @@ class UserController extends Controller
             }
         });
         return Response::body([
-            'charts'=> $charts,
+            'charts' => $charts,
             'things_num' => $user->things()->count(),
             'project_num' => $user->projects()->count()
         ]);
@@ -119,5 +133,11 @@ class UserController extends Controller
     {
         $widgets = $this->configService->setWidgetChart(collect($request->all()));
         return Response::body(['widgets' => $widgets]);
+    }
+
+    public function deleteWidgetChart(Request $request)
+    {
+        $this->configService->deleteWidgetChart(collect($request->all()));
+        return Response::body(['success' => true]);
     }
 }

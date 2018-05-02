@@ -76,6 +76,6 @@ class ThingPolicy
      */
     private function isOwner(User $user, Thing $thing)
     {
-        return $thing['user_id'] == $user['id'];
+        return $thing['owner']['_id'] == $user['id'];
     }
 }

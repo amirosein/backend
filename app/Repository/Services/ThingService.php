@@ -140,7 +140,7 @@ class ThingService
             'appSKey' => 'required',
         ]);
         if ($validator->fails())
-            throw new GeneralException('اطلاعات را کامل وارد کنید', 407);
+            throw new GeneralException('اطلاعات فعال سازی را کامل وارد کنید', 407);
         $data['devAddr'] = (string)$request->get('devAddr');
         $data['nwkSKey'] = (string)$request->get('nwkSKey');
         $data['appSKey'] = (string)$request->get('appSKey');
@@ -160,7 +160,7 @@ class ThingService
         $data = ['deviceKeys' => ['appKey' => $key]];
         $data['devEUI'] = $thing['interface']['devEUI'];
         $this->loraService->SendKeys($data);
-        return $data;
+        return $data['deviceKeys'];
     }
 
     /**
@@ -192,27 +192,43 @@ class ThingService
     }
 
     /**
-     * @param Request $request
+     * @param Collection $request
      * @param Thing $thing
      * @return $this|\Illuminate\Database\Eloquent\Model
+     * @throws LoraException
      */
-    public function updateThing(Request $request, Thing $thing)
+    public function updateThing(Collection $request, Thing $thing)
     {
-        if ($request->get('name'))
+        $lora_data = [];
+        if ($request->get('name')) {
             $thing->name = $request->get('name');
+            $lora_data['name'] = $request->get('name');
+        }
 
-        if ($request->get('description'))
+        if ($request->get('description')) {
             $thing->description = $request->get('description');
+            $lora_data['description'] = $request->get('description');
+        }
 
         if ($request->get('period'))
             $thing->period = $request->get('period');
+
+        if ($request->get('thing_profile_slug')) {
+            $profile = ThingProfile::where('thing_profile_slug', (int)$request->get('thing_profile_slug'))->first();
+            if ($profile && Auth::user()->can('view', $profile)) {
+                $lora_data['deviceProfileID'] = $profile['device_profile_id'];
+                $thing['profile_id'] = $profile['_id'];
+            } else
+                $lora_data['deviceProfileID'] = $thing['profile']['device_profile_id'];
+        }
+
 
         if ($request->get('lat') && $request->get('long'))
             $thing->loc = [
                 'type' => 'Point',
                 'coordinates' => [$request->get('lat'), $request->get('long')]
             ];
-
+        $this->loraService->updateDevice($lora_data, $thing['dev_eui']);
         $thing->save();
 
         return $thing;

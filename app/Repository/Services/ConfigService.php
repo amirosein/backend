@@ -36,12 +36,16 @@ class ConfigService
         if (!$config)
             $config = UserConfig::create(['user_id' => Auth::user()['_id']]);
         $config_widgets = isset($config['widgets']) ? $config['widgets'] : [];
+        $thing = Auth::user()->things()->with(['thing' => function ($query) use ($data) {
+            $query->where('dev_eui', $data->get('devEUI'));
+        }])->first();
+        if (!$thing)
+            throw new GeneralException('شی یافت نشد', GeneralException::NOT_FOUND);
         $widget = $data->only([
             'title',
             'devEUI',
             'key',
-            'since',
-            'until',
+            'window',
         ])->map(function ($value) {
             return $value ?: 0;
         })->toArray();
@@ -52,6 +56,22 @@ class ConfigService
         $config['widgets'] = $config_widgets;
         $config->save();
         return $config['widgets'];
+
+    }
+
+    /**
+     * @param Collection $data
+     * @return string
+     */
+    public function deleteWidgetChart(Collection $data)
+    {
+        $config = Auth::user()->config()->first();
+        if (!$config)
+            $config = UserConfig::create(['user_id' => Auth::user()['_id']]);
+        $config_widgets = isset($config['widgets']) ? $config['widgets'] : [];
+        unset($config_widgets[$data->get('id')]);
+        $config['widgets'] = $config_widgets;
+        $config->save();
 
     }
 

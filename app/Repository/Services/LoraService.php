@@ -9,6 +9,7 @@
 namespace App\Repository\Services;
 
 
+use App\Exceptions\GeneralException;
 use App\Exceptions\LoraException;
 use App\Thing;
 use Illuminate\Support\Collection;
@@ -78,8 +79,13 @@ class LoraService
      */
     public function deleteDeviceProfile($deviceProfileId)
     {
-        $url = $url = $this->base_url . '/api/device-profiles/' . $deviceProfileId;
-        return $this->send($url, [], 'delete');
+        try {
+            $url = $url = $this->base_url . '/api/device-profiles/' . $deviceProfileId;
+            return $this->send($url, [], 'delete');
+        } catch (LoraException $exception) {
+            if ($exception->getCode() == 9)
+                throw new LoraException('ابتدا اشیای متصل را حذف کنید.', GeneralException::ACCESS_DENIED);
+        }
     }
 
     /**
@@ -91,6 +97,19 @@ class LoraService
     {
         $url = $url = $this->base_url . '/api/devices/' . $deviceId;
         return $this->send($url, [], 'delete');
+    }
+
+    /**
+     * @param $data
+     * @param $dev_eui
+     * @return string
+     * @throws LoraException
+     */
+    public function updateDevice($data, $dev_eui)
+    {
+        $url = $url = $this->base_url . '/api/devices/' . $dev_eui;
+        $this->send($url, $data, 'put');
+        return true;
     }
 
     /**
@@ -135,7 +154,11 @@ class LoraService
     public function sendKeys($data)
     {
         $url = $url = $this->base_url . '/api/devices/' . $data['devEUI'] . '/keys';
-        return $this->send($url, $data, 'post');
+        try {
+            return $this->send($url, $data, 'post');
+        } catch (\Exception $e) {
+            return $this->send($url, $data, 'put');
+        }
     }
 
     /**
@@ -208,6 +231,17 @@ class LoraService
         return $this->send($url, [], 'get');
     }
 
+    /**
+     * @param $dev_eui
+     * @return string
+     * @throws LoraException
+     */
+    public function getActivation($dev_eui)
+    {
+        $url = $url = $this->base_url . '/api/devices/' . $dev_eui . '/activation';
+        return $this->send($url, [], 'get');
+    }
+
     private function send($url, $data, $method = 'get', $accept = 200)
     {
         if (env('LORA_TEST'))
@@ -225,8 +259,12 @@ class LoraService
             ->returnResponseObject();
         $new_response = $this->sendMethods($method, $response);
         // TODO remove debug
-        Log::notice('Lora Service Response');
+        Log::debug('-----------------------------------------------------');
+        Log::notice("Lora\t" . $method . "\t" . $url);
+        Log::debug(print_r($data, true));
+        Log::debug('res ---------------------');
         Log::debug(print_r($new_response, true));
+        Log::debug('-----------------------------------------------------');
         if ($new_response->status == 401 | $new_response->status == 403) {
             $this->authenticate();
             $response = $response->withHeader('Authorization: ' . $this->token);
@@ -266,6 +304,9 @@ class LoraService
                 break;
             case 'post':
                 $new_response = $response->asJson()->post();
+                break;
+            case 'put':
+                $new_response = $response->asJson()->put();
                 break;
             case 'delete':
                 $new_response = $response->asJsonResponse()->delete();

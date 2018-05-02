@@ -72,16 +72,20 @@ class AuthController extends Controller
     }
 
     /**
+     * @param Request $request
      * @return array
      */
-    public function refresh()
+    public function refresh(Request $request)
     {
+
         try {
             $token = $this->userService->refreshToken();
+            $user = User::where('_id', JWTAuth::getPayload($token)->toArray()['sub'])->first();
         } catch (\Exception $e) {
             return Response::body($e->getMessage(), $e->getCode());
         }
-        return Response::body(compact('token'));
+        $request->headers->set('authorization', 'Bearer ' . $token);
+        return Response::body(['token' => $token, 'user' => $user]);
     }
 
     /*
