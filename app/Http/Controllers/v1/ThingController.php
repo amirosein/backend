@@ -166,6 +166,7 @@ class ThingController extends Controller
             foreach ($results as $row) {
                 $data = $this->prepareRow($row);
                 try {
+                    $data['devEUI'] = str_repeat("0", 16 - strlen($data['devEUI'])) . $data['devEUI'];
                     $thing = Thing::where('dev_eui', $data['devEUI'])->with('profile')->first();
                     if (!$user->can('update', $project)) {
                         $res[$data['devEUI']] = 'شما دسترسی این کار را ندارید';

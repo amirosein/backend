@@ -10,6 +10,7 @@ use App\Repository\Services\LoraService;
 use App\Repository\Services\PermissionService;
 use App\Repository\Services\ProjectService;
 use App\Permission;
+use App\Repository\Services\ThingService;
 use App\Thing;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -22,6 +23,7 @@ class ProjectController extends Controller
     protected $permissionService;
     protected $coreService;
     protected $loraService;
+    protected $thingService;
 
     /**
      * ProjectController constructor.
@@ -29,15 +31,18 @@ class ProjectController extends Controller
      * @param PermissionService $permissionService
      * @param CoreService $coreService
      * @param LoraService $loraService
+     * @param ThingService $thingService
      */
     public function __construct(ProjectService $projectService,
                                 PermissionService $permissionService,
                                 CoreService $coreService,
-                                LoraService $loraService)
+                                LoraService $loraService,
+                                ThingService $thingService)
     {
         $this->projectService = $projectService;
         $this->permissionService = $permissionService;
         $this->coreService = $coreService;
+        $this->thingService = $thingService;
         $this->loraService = $loraService;
 
         $this->middleware('can:view,project')->only(['get', 'things']);
@@ -115,50 +120,12 @@ class ProjectController extends Controller
     /**
      * @param Project $project
      * @param Excel $excel
-     * @return array
-     * @throws \Maatwebsite\Excel\Exceptions\LaravelExcelException
+     * @return ThingService|\Illuminate\Database\Eloquent\Model
      */
     public function exportThings(Project $project, Excel $excel)
     {
         $things = $project->things()->with('profile')->get();
-        $res = [[
-            'operation',
-            'name',
-            'type',
-            'description',
-            'lat',
-            'long',
-            'period',
-            'devEUI',
-            'thing_profile_slug',
-            'appSKey',
-            'nwkSKey',
-            'devAddr'
-        ]];
-        $res = array_merge($res, $things->map(function ($item) {
-            return [
-                'add',
-                $item['name'],
-                'lora',
-                $item['description'],
-                $item['loc']['coordinates'][0],
-                $item['loc']['coordinates'][1],
-                $item['period'],
-                $item['dev_eui'],
-                $item['profile']['thing_profile_slug'],
-                isset($item['keys']) ? ($item['type'] == 'ABP' ? $item['keys']['appSKey'] : $item['keys']['appKey']) : '',
-                isset($item['keys']) && $item['type'] == 'ABP' ? $item['keys']['nwkSKey'] : '',
-                isset($item['keys']) && $item['type'] == 'ABP' ? $item['keys']['devAddr'] : '',
-            ];
-        })->toArray());
-
-        return response($excel->create('things.csv', function ($excel) use ($res) {
-            $excel->sheet('Things', function ($sheet) use ($res) {
-                $sheet->fromArray($res, null, 'A1', false, false);
-            });
-        })->string('csv'))
-            ->header('Content-Disposition', 'attachment; filename="things.csv.csv"')
-            ->header('Content-Type', 'application/csv; charset=UTF-8');
+        return $this->thingService->toExcel($things);
     }
 
 

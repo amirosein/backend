@@ -112,10 +112,15 @@ class UserController extends Controller
                 return [
                     'title' => $widget['title'],
                     'thing' => $thing,
-                    'data' => collect($this->coreService->thingData($thing, $since, $until))->map(function ($data) use ($widget) {
-                        $data = json_decode(json_encode($data), True);
-                        return ['timestamp' => $data['timestamp'], 'value' => $data['data'][$widget['key']]];
-                    })];
+                    'data' => collect($this->coreService->thingData($thing, $since, $until))
+                        ->filter(function ($data) use ($widget) {
+                            $data = json_decode(json_encode($data), True);
+                            return isset($data['data'][$widget['key']]);
+                        })
+                        ->map(function ($data) use ($widget) {
+                            $data = json_decode(json_encode($data), True);
+                            return ['timestamp' => $data['timestamp'], 'value' => $data['data'][$widget['key']]];
+                        })->values()];
             } catch (\Error $e) {
                 return [];
             } catch (\Exception $e) {

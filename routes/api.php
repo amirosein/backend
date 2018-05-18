@@ -76,7 +76,7 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
         });
     });
 
-    Route::group(['prefix' => 'things', 'middleware' => ['auth.jwt']], function (){
+    Route::group(['prefix' => 'things', 'middleware' => ['auth.jwt']], function () {
         Route::get('/', 'ThingController@all');
         Route::post('/', 'ThingController@create');
         Route::post('/from-excel', 'ThingController@fromExcel');
@@ -99,6 +99,7 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
         Route::post('/', 'ThingProfileController@create');
         Route::delete('/{thing_profile}', 'ThingProfileController@delete');
         Route::get('/{thing_profile}', 'ThingProfileController@get');
+        Route::get('/{thing_profile}/things-excel', 'ThingProfileController@thingsExcel');
 
     });
 
@@ -107,6 +108,8 @@ Route::group(['namespace' => 'v1', 'prefix' => 'v1'], function () use ($router) 
         Route::get('/', 'GatewayController@list');
         Route::delete('/{gateway}', 'GatewayController@delete');
         Route::get('/{gateway}', 'GatewayController@info');
+        Route::put('/{gateway}', 'GatewayController@update');
+        Route::get('/{gateway}/frames', 'GatewayController@frames');
     });
 
     Route::group(['prefix' => 'packages', 'middleware' => ['auth.jwt']], function () {

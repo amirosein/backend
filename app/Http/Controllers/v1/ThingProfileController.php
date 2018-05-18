@@ -6,6 +6,7 @@ use App\Exceptions\GeneralException;
 use App\Repository\Helper\Counter;
 use App\Repository\Helper\Response;
 use App\Repository\Services\LoraService;
+use App\Repository\Services\ThingService;
 use App\ThingProfile;
 use App\Exceptions\LoraException;
 use Illuminate\Http\Request;
@@ -16,14 +17,17 @@ use Illuminate\Support\Facades\Auth;
 class ThingProfileController extends Controller
 {
     protected $loraService;
+    protected $thingService;
 
     /**
      * ProjectController constructor.
      * @param LoraService $loraService
+     * @param ThingService $thingService
      */
-    public function __construct(LoraService $loraService)
+    public function __construct(LoraService $loraService, ThingService $thingService)
     {
         $this->loraService = $loraService;
+        $this->thingService = $thingService;
 
         $this->middleware('can:view,thing_profile')->only(['get']);
         $this->middleware('can:delete,thing_profile')->only(['delete']);
@@ -88,6 +92,16 @@ class ThingProfileController extends Controller
         $this->loraService->deleteDeviceProfile($thing_profile['device_profile_id']);
         $thing_profile->delete();
         return Response::body(['success' => 'true']);
+    }
+
+    /**
+     * @param ThingProfile $thing_profile
+     * @return ThingService|\Illuminate\Database\Eloquent\Model
+     */
+    public function thingsExcel(ThingProfile $thing_profile)
+    {
+        $things = $thing_profile->things()->get();
+        return $this->thingService->toExcel($things);
     }
 
 

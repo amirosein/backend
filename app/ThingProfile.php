@@ -14,7 +14,7 @@ class ThingProfile extends Eloquent
      * @var array
      */
     protected $fillable = [
-        'thing_profile_slug', 'data', 'type', 'user_id', 'device_profile_id','name'
+        'thing_profile_slug', 'data', 'type', 'user_id', 'device_profile_id', 'name'
     ];
 
     /**
@@ -28,7 +28,7 @@ class ThingProfile extends Eloquent
 
     public function things()
     {
-        return $this->hasMany(Thing::class)->with('user');
+        return $this->hasMany(Thing::class, 'profile_id');
     }
 
     public function getNameAttribute($value)

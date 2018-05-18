@@ -87,10 +87,11 @@ class ThingService
             'things' => 'required|file',
         ], $messages);
 
+        $extension = $request->file('things')->clientExtension();
         if ($validator->fails())
             throw new  GeneralException($validator->errors()->first(), GeneralException::VALIDATION_ERROR);
-        if ($request->file('things')->clientExtension() != 'csv')
-            throw new  GeneralException('لطفا فایل با فرمت csv انتخاب کنید', GeneralException::VALIDATION_ERROR);
+        if ($extension != 'csv' && $extension != 'xls' && $extension != 'xlsx')
+            throw new  GeneralException('لطفا فایل با فرمت اکسل انتخاب کنید', GeneralException::VALIDATION_ERROR);
     }
 
     /**
@@ -146,7 +147,7 @@ class ThingService
         $data['appSKey'] = (string)$request->get('appSKey');
         $data['fCntUp'] = intval($request->get('fCntUp', 0));
         $data['fCntDown'] = intval($request->get('fCntDown', 0));
-        $data['skipFCntCheck'] = $request->get('skipFCntCheck') === '1' ? true : false;
+        $data['skipFCntCheck'] = $request->get('skipFCntCheck') === 'true' ? true : false;
         $data['devEUI'] = $thing['interface']['devEUI'];
         $this->loraService->activateDevice($data);
         return $data;
@@ -155,8 +156,6 @@ class ThingService
     public function activateOTAA($request, Thing $thing)
     {
         $key = $request->get('appKey');
-        if (!$key)
-            $key = $request->get('appSKey');
         $data = ['deviceKeys' => ['appKey' => $key]];
         $data['devEUI'] = $thing['interface']['devEUI'];
         $this->loraService->SendKeys($data);
@@ -202,12 +201,12 @@ class ThingService
         $lora_data = [];
         if ($request->get('name')) {
             $thing->name = $request->get('name');
-            $lora_data['name'] = $request->get('name');
+            $lora_data['name'] = (string)$request->get('name');
         }
 
         if ($request->get('description')) {
             $thing->description = $request->get('description');
-            $lora_data['description'] = $request->get('description');
+            $lora_data['description'] = (string)$request->get('description');
         }
 
         if ($request->get('period'))
@@ -215,11 +214,13 @@ class ThingService
 
         if ($request->get('thing_profile_slug')) {
             $profile = ThingProfile::where('thing_profile_slug', (int)$request->get('thing_profile_slug'))->first();
+
             if ($profile && Auth::user()->can('view', $profile)) {
-                $lora_data['deviceProfileID'] = $profile['device_profile_id'];
+                $lora_data['deviceProfileID'] = (string)$profile['device_profile_id'];
                 $thing['profile_id'] = $profile['_id'];
+                $thing['type'] = $profile['data']['deviceProfile']['supportsJoin'] ? 'OTAA' : 'ABP';
             } else
-                $lora_data['deviceProfileID'] = $thing['profile']['device_profile_id'];
+                $lora_data['deviceProfileID'] = (string)$thing['profile']['device_profile_id'];
         }
 
 
@@ -232,6 +233,63 @@ class ThingService
         $thing->save();
 
         return $thing;
+    }
+
+
+    /**
+     * @param $things
+     * @return $this|\Illuminate\Database\Eloquent\Model
+     */
+    public function toExcel($things)
+    {
+        $excel = resolve('Maatwebsite\Excel\Excel');
+        $res = [[
+            'operation',
+            'name',
+            'type',
+            'description',
+            'lat',
+            'long',
+            'period',
+            'devEUI',
+            'thing_profile_slug',
+            'appKey',
+            'appSKey',
+            'nwkSKey',
+            'devAddr',
+            'fCntDown',
+            'fCntUp',
+            'skipFCntCheck',
+
+        ]];
+        $res = array_merge($res, $things->map(function ($item) {
+            return [
+                'add',
+                $item['name'],
+                'lora',
+                $item['description'],
+                $item['loc']['coordinates'][0],
+                $item['loc']['coordinates'][1],
+                $item['period'],
+                $item['dev_eui'],
+                $item['profile']['thing_profile_slug'],
+                isset($item['keys']['appKey']) ? $item['keys']['appKey'] : '',
+                isset($item['keys']['appSKey']) ? $item['keys']['appSKey'] : '',
+                isset($item['keys']['nwkSKey']) ? $item['keys']['nwkSKey'] : '',
+                isset($item['keys']['devAddr']) ? $item['keys']['devAddr'] : '',
+                isset($item['keys']['fCntDown']) ? $item['keys']['fCntDown'] : '',
+                isset($item['keys']['fCntUp']) ? $item['keys']['fCntUp'] : '',
+                isset($item['keys']['skipFCntCheck']) && $item['keys']['skipFCntCheck'] ? 'true' : '',
+            ];
+        })->toArray());
+
+        return response($excel->create('things.csv', function ($excel) use ($res) {
+            $excel->sheet('Things', function ($sheet) use ($res) {
+                $sheet->fromArray($res, null, 'A1', false, false);
+            });
+        })->string('csv'))
+            ->header('Content-Disposition', 'attachment; filename="things.csv.csv"')
+            ->header('Content-Type', 'application/csv; charset=UTF-8');
     }
 
 

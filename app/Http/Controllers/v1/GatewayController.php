@@ -63,7 +63,31 @@ class GatewayController extends Controller
         $data['longitude'] = floatval($data['longitude']);
         $data['ping'] = $request->get('ping') === '1' ? true : false;
         $this->loraService->sendGateway($data);
+        $this->coreService->enableGateway($request->get('mac'));
         $gateway = $this->gatewayService->insertGateway($request, $id);
+        return Response::body(compact('gateway'));
+    }
+
+    /**
+     * @param Gateway $gateway
+     * @param Request $request
+     * @return array
+     * @throws GeneralException
+     */
+    public function update(Gateway $gateway, Request $request)
+    {
+        $this->gatewayService->validateCreateGateway($request);
+        $data = $request->only(['altitude', 'latitude', 'longitude', 'description', 'name']);
+        $gateway['name'] = $data['name'];
+        $gateway['description'] = $data['description'];
+        $gateway['altitude'] = intval($data['altitude']);
+        $gateway['loc'] = [
+            'type' => 'Point',
+            'coordinates' => [$request->get('latitude'), $request->get('longitude')]
+        ];
+        $this->coreService->enableGateway($gateway['mac']);
+        $gateway->save();
+        $gateway->load_last_seen();
         return Response::body(compact('gateway'));
     }
 
@@ -75,19 +99,34 @@ class GatewayController extends Controller
     public function info(Gateway $gateway)
     {
         //$gateway['firstSeenAt'] = $info->firstSeenAt;
-        try {
-            $info = $this->loraService->getGW($gateway['mac']);
-            $time = lora_time($info->lastSeenAt);
-            $last_seen = [
-                'time' => (string)lora_time($info->lastSeenAt),
-                'status' => Carbon::now()->subHour() > $time ? 'red' : 'green'
-            ];
-            $gateway['last_seen_at'] = $last_seen;
-        } catch (LoraException $e) {
-            $gateway['last_seen_at'] = ['time' => '', 'status' => ''];
-        }
+        $gateway->load_last_seen();
         return Response::body(compact('gateway'));
     }
+
+
+    /**
+     * @param Gateway $gateway
+     * @param Request $request
+     * @return array
+     * @throws GeneralException
+     */
+    public function frames(Gateway $gateway, Request $request)
+    {
+        $since = $request->get('since') ?: 5;
+        $since = Carbon::now()->subSecond($since)->getTimestamp();
+        $frames = $this->coreService->gatewayFrames($gateway['mac'], $since);
+        $frames = collect(json_decode(json_encode($frames), true));
+        $frames = $frames->map(function ($item) {
+            if (isset($item['uplinkframe']['phypayloadjson']))
+                $item['uplinkframe']['phypayloadjson'] = json_decode($item['uplinkframe']['phypayloadjson'], true);
+            if (isset($item['downlinkframe']['phypayloadjson']))
+                $item['downlinkframe']['phypayloadjson'] = json_decode($item['downlinkframe']['phypayloadjson'], true);
+            $item['timestamp'] = substr($item['timestamp'], strpos($item['timestamp'], 'T') + 1, 8);
+            return $item;
+        });
+        return Response::body(compact('frames'));
+    }
+
 
     /**
      * @return array

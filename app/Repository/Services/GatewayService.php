@@ -25,12 +25,11 @@ class GatewayService
     public function validateCreateGateway(Request $request)
     {
         $messages = [
-            'altitude.required' => 'لطفا altitude را وارد کنید',
+            'altitude.required' => 'لطفا ارتفاع را وارد کنید',
             'name.required' => 'لطفا نام درگاه را وارد کنید',
             'mac.required' => 'لطفا آدرس فیزیکی درگاه را وارد کنید',
             'latitude.required' => 'لطفا مختصات جغرافیایی درگاه را وارد کنید',
             'longitude.required' => 'لطفا مختصات جغرافیایی درگاه را وارد کنید',
-            'description.required' => 'لطفا توضیحات درگاه را وارد کنید',
 
         ];
 
@@ -40,7 +39,6 @@ class GatewayService
             'mac' => 'required',
             'latitude' => 'required',
             'longitude' => 'required',
-            'description' => 'required',
         ], $messages);
 
         if ($validator->fails())
@@ -49,7 +47,6 @@ class GatewayService
 
     /**
      * @param Request $request
-     * @param $id
      * @return void
      * @throws GeneralException
      */
