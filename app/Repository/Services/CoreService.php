@@ -248,9 +248,10 @@ class CoreService
             ->withData($data)
             ->withOption('SSL_VERIFYHOST', false)
             ->returnResponseObject()
-            ->asJsonRequest()
-            ->asJsonResponse()
             ->withTimeout('5');
+        if ($json_request == 1) {
+            $response = $response->asJsonRequest()->asJsonResponse();
+        }
         $new_response = null;
         switch ($method) {
             case 'get':
