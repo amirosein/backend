@@ -91,8 +91,8 @@ class CoreService
     public function sendCodec(Project $project, Thing $thing, $codec)
     {
         Log::debug("Core Send Codec\t" . $project['_id']);
-        $url = '/api/codec/' . $thing['interface']['devEUI'];
-        $response = $this->send($url, $codec, 'post', $project['container']['runner']['port'], 0);
+        $url = '/api/codec'; 
+        $response = $this->send($url, ['code' => $codec, 'id' => $thing['interface']['devEUI']], 'post', $project['container']['runner']['port']);
         return $response;
     }
 
@@ -136,8 +136,8 @@ class CoreService
     public function sendScenario(Project $project, Scenario $scenario)
     {
         Log::debug("Core Send Scenario\t" . $project['_id']);
-        $url = '/api/scenario/' . $project['container']['name'];
-        $response = $this->send($url, $scenario->code, 'post', $project['container']['runner']['port'], 0);
+        $url = '/api/scenario'; 
+        $response = $this->send($url, ['code' => $scenario->code, 'id' => $project['container']['name']], 'post', $project['container']['runner']['port']);
         return $response;
     }
 
@@ -152,7 +152,7 @@ class CoreService
     {
         Log::debug("Core Lint\t" . $project['_id']);
         $url = '/api/lint';
-        $response = $this->send($url, $code, 'post', $project['container']['runner']['port'], 0);
+        $response = $this->send($url, $code, 'post', $project['container']['runner']['port']);
         return $response;
     }
 
@@ -217,11 +217,11 @@ class CoreService
      * @return array
      * @throws GeneralException
      */
-    public function downLinkThing(Project $project, Thing $thing, $data)
+    public function downLinkThing(Project $project, Thing $thing, $data, $fport = 2, $confirmed = false)
     {
         Log::debug("DownLink Project List\t" . $thing['dev_eui']);
         $url = '/api/send';
-        $data = ['thing' => $thing->toArray(), 'data' => $data, 'project_id' => $project->application_id];
+        $data = ['thing_id' => $thing['interface']['devEUI'], 'data' => $data, 'confirmed' => $confirmed, 'fport' => $fport];
         $response = $this->send($url, $data, 'post', $this->downLinkPort);
         return $response;
     }
