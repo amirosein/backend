@@ -107,7 +107,7 @@ class UserController extends Controller
         $charts = collect($config['widgets'])->map(function ($widget) {
             try {
                 $thing = Thing::where('dev_eui', $widget['devEUI'])->first();
-                $since = Carbon::now()->subMinute((int)$widget['window'])->getTimestamp();
+                $since = Carbon::now()->subHours((int)$widget['window'])->getTimestamp();
                 $until = Carbon::now()->getTimestamp();
                 return [
                     'title' => $widget['title'],

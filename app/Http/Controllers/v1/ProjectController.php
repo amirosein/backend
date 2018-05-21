@@ -113,7 +113,7 @@ class ProjectController extends Controller
      */
     public function things(Project $project)
     {
-        $things = $project->things()->get();
+        $things = $project->things()->with('profile')->get();
         return Response::body(compact('things'));
     }
 
