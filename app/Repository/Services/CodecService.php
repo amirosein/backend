@@ -48,15 +48,20 @@ class CodecService
      * @param Project $project
      * @return void
      */
-    public function insertCodec(Request $request, Project $project)
+    public function insertCodec(Request $request, Project $project = null)
     {
         $user = Auth::user();
-        $codec = Codec::create([
+        $data = [
             'name' => $request->get('name'),
             'code' => $request->get('code'),
-            'project_id' => $project['id'],
-            'user_id' => $user['_id']
-        ]);
+        ];
+        if ($project) {
+            $data['user_id'] = $user['_id'];
+            $data['project_id'] = $project['_id'];
+        } else
+            $data['global'] = true;
+
+        $codec = Codec::create($data);
         $codec->save();
         return $codec;
     }

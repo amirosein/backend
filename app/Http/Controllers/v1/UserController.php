@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Psy\Exception\FatalErrorException;
 use Symfony\Component\Debug\Exception\FatalThrowableError;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 
 class UserController extends Controller
@@ -74,7 +75,7 @@ class UserController extends Controller
     public function profile()
     {
         $user = Auth::user();
-        return Response::body(compact('user'));
+        return Response::body(['user'=>$user,'token'=>JWTAuth::refresh()]);
     }
 
     /**
@@ -111,6 +112,7 @@ class UserController extends Controller
                 $until = Carbon::now()->getTimestamp();
                 return [
                     'title' => $widget['title'],
+                    'type' => $widget['type'],
                     'thing' => $thing,
                     'data' => collect($this->coreService->thingData($thing, $since, $until))
                         ->filter(function ($data) use ($widget) {
@@ -145,4 +147,5 @@ class UserController extends Controller
         $this->configService->deleteWidgetChart(collect($request->all()));
         return Response::body(['success' => true]);
     }
+
 }

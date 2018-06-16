@@ -24,8 +24,8 @@ trait UpdateUser
      */
     public function updateUser(Request $request)
     {
-        $user = Auth::user();
-        if ($user['legal']) {
+        if ($request->get('legal')) {
+            $this->updateRealUser($request);
             return $this->updateLegalUser($request);
         } else {
             return $this->updateRealUser($request);
@@ -74,6 +74,7 @@ trait UpdateUser
 
     private function validateUpdateLegal(Request $request)
     {
+        $data = collect(json_decode($request->get('legal_info'), true));
         $messages = [
             'org_interface_name.filled' => 'لطفا نام رابط سازمان را وارد کنید',
             'org_interface_last_name.filled' => 'لطفا نام خانوادگی رابط سازمان را وارد کنید',
@@ -83,12 +84,9 @@ trait UpdateUser
             'org_name.filled' => 'لطفا نام سازمان را وارد کنید',
             'reg_number.filled' => 'لطفا شماره ثبت را وارد کنید',
             'ec_code.filled' => 'لطفا کد اقتصادی را وارد کنید',
-
-            'password.filled' => 'لطفا رمزعبور را وارد کنید',
-            'password.min' => 'رمز عبور حداقل باید ۶ کارکتر باشد',
         ];
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($data->all(), [
             'org_interface_name' => 'filled',
             'org_interface_last_name' => 'filled',
             'org_interface_phone' => 'filled',
@@ -97,7 +95,6 @@ trait UpdateUser
             'org_name' => 'filled',
             'reg_number' => 'filled',
             'ec_code' => 'filled',
-            'password' => 'filled|string|min:6',
         ], $messages);
 
         if ($validator->fails())
@@ -126,6 +123,12 @@ trait UpdateUser
             $other_info[$key] = $value;
         }
         $user->other_info = $other_info;
+        if (!$request->get('legal')) {
+            unset($user['legal_info']);
+            $user['legal'] = false;
+        } else
+            $user['legal'] = true;
+
 
         $user->save();
 
@@ -135,8 +138,9 @@ trait UpdateUser
     private function updateLegalUser(Request $request)
     {
         $user = Auth::user();
+        $data = collect(json_decode($request->get('legal_info'), true));
 
-        $updated_other_info = $request->only([
+        $updated_legal_info = $data->only([
             'org_interface_name',
             'org_interface_last_name',
             'org_interface_phone',
@@ -147,11 +151,11 @@ trait UpdateUser
             'ec_code'
         ]);
 
-        $other_info = $user['other_info'];
-        foreach ($updated_other_info as $key => $value) {
-            $other_info[$key] = $value;
+        $legal_info = $user['legal_info'];
+        foreach ($updated_legal_info as $key => $value) {
+            $legal_info[$key] = $value;
         }
-        $user->other_info = $other_info;
+        $user->legal_info = $legal_info;
 
         $user->save();
 

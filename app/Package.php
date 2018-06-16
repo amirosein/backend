@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Package extends Eloquent
 {
 
+    public $timestamps = false;
 
     protected $appends = [];
     /**
@@ -16,7 +17,7 @@ class Package extends Eloquent
      * @var array
      */
     protected $fillable = [
-        'name', 'node_num', 'project_num', 'time', 'price'
+        'name', 'node_num', 'project_num', 'time', 'price','is_active'
     ];
 
     /**
@@ -25,7 +26,6 @@ class Package extends Eloquent
      * @var array
      */
     protected $hidden = [
-        'is_active'
     ];
 
     public function things()
@@ -33,8 +33,4 @@ class Package extends Eloquent
         return $this->hasMany(Thing::class)->with('user');
     }
 
-    public function getNameAttribute($value)
-    {
-        return $this['data']['name'];
-    }
 }

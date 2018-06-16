@@ -54,24 +54,52 @@ class CodecController extends Controller
      */
     public function send(Thing $thing, Request $request)
     {
-        $codec = $request->get('codec');
+        $codec = null;
+        if ($request->get('codec_id')) {
+            $codec = Codec::where('global', true)->where('_id', $request->get('codec_id'))->first();
+            $thing['codec_id'] = $request->get('codec_id');
+            $thing['codec'] = '';
+            if ($codec)
+                $codec = $codec['code'];
+        }
+        if (!$codec) {
+            $codec = $request->get('codec');
+            $thing['codec_id'] = '';
+            $thing['codec'] = $codec;
+        }
         $project = $thing->project()->first();
         $this->coreService->sendCodec($project, $thing, $codec);
-        $thing->codec = $codec;
         $thing->save();
         return Response::body(['success' => 'true']);
     }
 
     /**
-     * @param Project $project
+     * @param Thing $thing
+     * @param Request $request
+     * @return array
+     * @throws GeneralException
+     */
+    public function test(Thing $thing, Request $request)
+    {
+        $project = $thing->project()->first();
+        $decode = $request->get('decode') ? true : false;
+        if ($decode)
+            $response = $this->coreService->decode($project, $thing, $request->get('data'));
+        else
+            $response = $this->coreService->encode($project, $thing, $request->get('data'));
+        return Response::body($response);
+    }
+
+    /**
      * @param Thing $thing
      * @param Request $request
      * @return array
      */
-    public function getThing(Project $project, Thing $thing, Request $request)
+    public function getThing(Thing $thing, Request $request)
     {
-        $codec = $thing->codec;
-        return Response::body(compact('codec'));
+        $codec = $thing['codec'];
+        $codec_id = $thing['codec_id'];
+        return Response::body($codec_id ? compact('codec_id') : compact('codec'));
     }
 
 
@@ -82,7 +110,8 @@ class CodecController extends Controller
     public function list(Project $project)
     {
         $codecs = $project->codecs()->get();
-        return Response::body(compact('codecs'));
+        $globals = Codec::where('global', true)->select('name', '_id')->get();
+        return Response::body(['codecs' => $codecs, 'globals' => $globals]);
     }
 
     /**

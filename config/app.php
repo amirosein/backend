@@ -184,6 +184,7 @@ return [
         Tymon\JWTAuth\Providers\JWTAuthServiceProvider::class,
         Anhskohbo\NoCaptcha\NoCaptchaServiceProvider::class,
         Maatwebsite\Excel\ExcelServiceProvider::class,
+        Zarinpal\ZarinpalServiceProvider::class,
 
     ],
 

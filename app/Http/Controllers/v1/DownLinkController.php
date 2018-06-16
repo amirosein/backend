@@ -19,12 +19,24 @@ class DownLinkController extends Controller
         $this->coreService = $coreService;
     }
 
-    public function sendThing(Project $project, Thing $thing, Request $request)
+    public function sendThing(Thing $thing, Request $request)
     {
-        $validator = Validator::make($request->all(), ['data' => 'required|json']);
+        $project = $thing->project()->first();
+        $validator = Validator::make($request->all(), [
+            'data' => 'required|json',
+            'fport' => 'integer',
+        ], [
+            'data.required' => 'لطفا داده‌ها را وارد کنید',
+            'data.json' => 'لطفا داده‌ها را درست کنید',
+            'fport.integer' => 'لطفا پورت را درست وارد کنید',
+        ]);
         if ($validator->fails())
             throw new GeneralException('اطلاعات را کامل و درست وارد کنید', 407);
-        $this->coreService->downLinkThing($project, $thing, $request->get('data'));
+        $this->coreService->downLinkThing($project,
+            $thing,
+            $request->get('data')
+            , $request->get('fport') ?: 2
+            , $request->get('confirmed') ? true : false);
 
     }
 }

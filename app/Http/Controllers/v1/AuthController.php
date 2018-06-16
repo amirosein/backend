@@ -128,7 +128,7 @@ class AuthController extends Controller
             $user['active'] = true;
             $user->unset('email_token');
             $user->save();
-            return view('auth.verified');
+            return view('auth.verified', ['token' => JWTAuth::fromUser($user)]);
         }
         return view('auth.not_verified');
     }

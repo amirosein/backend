@@ -9,10 +9,13 @@
 namespace App\Repository\Traits;
 
 use App\Exceptions\GeneralException;
+use App\Package;
 use App\Repository\Helper\MobileFactory;
 use App\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use MongoDB\BSON\UTCDateTime;
 
 trait RegisterUser
 {
@@ -23,14 +26,17 @@ trait RegisterUser
      */
     public function insertUser(Request $request)
     {
+        $package = Package::where('default', true)->first()->toArray();
+        $package['start_date'] = new UTCDateTime(Carbon::now());
         return User::create([
             'legal' => $request->get('legal') ? true : false,
             'active' => false,
             'name' => $request->get('name'),
             'email' => $request->get('email'),
             'password' => bcrypt($request->get('password')),
+            'package' => $package
         ]);
-        // Todo delete
+
         if ($request->has('legal') && $request->get('legal') == 1) {
             return $this->insertLegalUser($request);
         } else {

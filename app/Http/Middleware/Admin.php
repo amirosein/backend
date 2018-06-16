@@ -30,7 +30,7 @@ class Admin
     private function authenticate()
     {
         $user = Auth::user();
-        if (!$user || !$user['is_admin'])
+        if (!$user || !$user->isAdmin())
             throw new GeneralException(GeneralException::M_ACCESS_DENIED, GeneralException::ACCESS_DENIED);
 
     }

@@ -103,25 +103,13 @@ class ThingController extends Controller
     }
 
     /**
-     * @param Thing $thing
      * @param Request $request
      * @return array
-     * @throws \App\Exceptions\GeneralException
+     * @throws GeneralException
      */
-    public function data(Thing $thing, Request $request)
+    public function sampleData(Request $request)
     {
-        $project = $thing->project()->first();
-        $aliases = isset($project['aliases']) ? $project['aliases'] : null;
-        if ($request->get('window')) {
-            $since = Carbon::now()->subMinute((int)$request->get('window'))->getTimestamp();
-            $until = Carbon::now()->getTimestamp();
-        } else {
-            $since = $request->get('since') ?: 0;
-            $until = $request->get('until') ?: Carbon::now()->getTimestamp();
-        }
-        $data = $this->coreService->thingData($thing, $since, $until);
-        $data = $this->alias($data, $aliases);
-        return Response::body(compact('data'));
+        return $this->data($request, true);
     }
 
     /**
@@ -129,24 +117,9 @@ class ThingController extends Controller
      * @return array
      * @throws GeneralException
      */
-    public function multiThingData(Request $request)
+    public function mainData(Request $request)
     {
-        $project = Project::where('_id', $request->get('project_id'))->first();
-        $aliases = isset($project['aliases']) ? $project['aliases'] : null;
-        if ($request->get('window')) {
-            $since = Carbon::now()->subMinute((int)$request->get('window'))->getTimestamp();
-            $until = Carbon::now()->getTimestamp();
-        } else {
-            $since = $request->get('since') ?: 0;
-            $until = $request->get('until') ?: Carbon::now()->getTimestamp();
-        }
-        $thing_ids = json_decode($request->get('thing_ids'), true)['ids'] ?: [];
-        $thing_ids = $project->things()->whereIn('_id', $thing_ids)->get()->pluck('dev_eui');
-        $data = $this->coreService->thingsData($thing_ids, $since, $until);
-        //$data = $this->fillMissingData($data);
-        $data = $this->alias($data, $aliases);
-
-        return Response::body(compact('data'));
+        return $this->data($request, false);
     }
 
     /**
@@ -176,7 +149,7 @@ class ThingController extends Controller
                         else
                             $thing = $this->thingService->updateThing(collect($row), $thing);
                         $res[$data['devEUI']] = $thing;
-                        $this->activateThing($thing, collect($row));
+                        $this->sendKeys($thing, collect($row));
                     } elseif ($row['operation'] == 'delete') {
                         $deleted = $thing && $user->can('delete', $thing) ? $this->delete($thing) : 0;
                         if ($deleted)
@@ -204,6 +177,7 @@ class ThingController extends Controller
     public function delete(Thing $thing)
     {
         $this->loraService->deleteDevice($thing['interface']['devEUI']);
+        $this->coreService->deleteThing($thing['dev_eui']);
         $thing->permissions()->delete();
         $thing->delete();
         return Response::body(['success' => 'true']);
@@ -216,9 +190,54 @@ class ThingController extends Controller
      */
     public function activate(Thing $thing, Request $request)
     {
-        $keys = $this->activateThing($thing, collect($request->all()));
+        $active = $request->get('active') ? true : false;
+        $this->thingService->activate($thing, $active);
+        return Response::body(['success' => 'true']);
+    }
+
+    /**
+     * @param Thing $thing
+     * @param Request $request
+     * @return array
+     */
+    public function keys(Thing $thing, Request $request)
+    {
+        $keys = $this->sendKeys($thing, collect($request->all()));
         return Response::body(['keys' => $keys]);
 
+    }
+
+
+    /**
+     * @param Request $request
+     * @param bool $sample
+     * @return array
+     * @throws GeneralException
+     */
+    private function data(Request $request, $sample = false)
+    {
+        $project = Project::where('_id', $request->get('project_id'))->first();
+        $aliases = isset($project['aliases']) ? $project['aliases'] : null;
+        if ($request->get('window')) {
+            $since = Carbon::now()->subMinute((int)$request->get('window'))->getTimestamp();
+            $until = Carbon::now()->getTimestamp();
+        } else {
+            $since = $request->get('since') ?: 0;
+            $until = $request->get('until') ?: Carbon::now()->getTimestamp();
+        }
+        $thing_ids = json_decode($request->get('thing_ids'), true)['ids'] ?: [];
+        $thing_ids = $project->things()->whereIn('_id', $thing_ids)->get()->pluck('dev_eui');
+        if ($sample) {
+            $cluster_number = (int)($request->get('cn')) ?: 200;
+            $data = $this->coreService->thingsSampleData($thing_ids, $since, $until, $cluster_number);
+        } else {
+            $limit = (int)($request->get('limit')) ?: 0;
+            $offset = (int)($request->get('offset')) ?: 0;
+            $data = $this->coreService->thingsMainData($thing_ids, $since, $until, $limit,$offset);
+        }
+        $data = $this->alias($data, $aliases);
+
+        return Response::body(compact('data'));
     }
 
     private function prepareRow($row)
@@ -246,7 +265,6 @@ class ThingController extends Controller
         return $data;
     }
 
-
     private function createThing(Collection $data, Project $project)
     {
         $user = Auth::user();
@@ -262,15 +280,16 @@ class ThingController extends Controller
         ]);
         $thing->permissions()->save($permission);
         $user->permissions()->save($permission);
+        $this->thingService->addToProject($project, $thing);
         return $thing;
     }
 
-    private function activateThing(Thing $thing, Collection $data)
+    private function sendKeys(Thing $thing, Collection $data)
     {
         if ($thing['type'] == 'OTAA')
-            $keys = $this->thingService->activateOTAA($data, $thing);
+            $keys = $this->thingService->OTAAKeys($data, $thing);
         else
-            $keys = $this->thingService->activateABP($data, $thing);
+            $keys = $this->thingService->ABPKeys($data, $thing);
         $thing['keys'] = $keys;
         $thing->save();
         return $keys;

@@ -24,13 +24,18 @@ class ThingService
     protected $loraService;
     protected $coreService;
     protected $projectService;
+    protected $lanService;
 
-    public function __construct(LoraService $loraService,
-                                CoreService $coreService,
-                                ProjectService $projectService)
+    public function __construct(
+        LoraService $loraService,
+        CoreService $coreService,
+        LanService $lanService,
+        ProjectService $projectService
+    )
     {
         $this->loraService = $loraService;
         $this->coreService = $coreService;
+        $this->lanService = $lanService;
         $this->projectService = $projectService;
     }
 
@@ -114,6 +119,12 @@ class ThingService
             $project['application_id'],
             $thingProfile['device_profile_id']
         );
+        $this->lanService->postDevice(
+            $request,
+            $project['application_id'],
+            $thingProfile['device_profile_id']
+        );
+
         $this->validateInsert($request);
         $thing = Thing::create([
             'name' => $request->get('name'),
@@ -121,6 +132,7 @@ class ThingService
             'interface' => $device->toArray(),
             'period' => $request->get('period'),
             'dev_eui' => $request->get('devEUI'),
+            'active' => true,
             'type' => $thingProfile['data']['deviceProfile']['supportsJoin'] ? 'OTAA' : 'ABP',
             'loc' => [
                 'type' => 'Point',
@@ -128,12 +140,11 @@ class ThingService
             ],
         ]);
         $thing->profile()->associate($thingProfile);
-        $this->addToProject($project, $thing);
         return $thing;
     }
 
 
-    public function activateABP($request, Thing $thing)
+    public function ABPKeys($request, Thing $thing)
     {
         $validator = Validator::make($request->all(), [
             'devAddr' => 'required',
@@ -153,13 +164,20 @@ class ThingService
         return $data;
     }
 
-    public function activateOTAA($request, Thing $thing)
+    public function OTAAKeys($request, Thing $thing)
     {
         $key = $request->get('appKey');
         $data = ['deviceKeys' => ['appKey' => $key]];
         $data['devEUI'] = $thing['interface']['devEUI'];
         $this->loraService->SendKeys($data);
         return $data['deviceKeys'];
+    }
+
+    public function activate(Thing $thing, $active)
+    {
+        $this->coreService->activateThing($thing, $active);
+        $thing->active = $active;
+        $thing->save();
     }
 
     /**
@@ -283,12 +301,20 @@ class ThingService
             ];
         })->toArray());
 
-        return response($excel->create('things.csv', function ($excel) use ($res) {
-            $excel->sheet('Things', function ($sheet) use ($res) {
-                $sheet->fromArray($res, null, 'A1', false, false);
-            });
-        })->string('csv'))
-            ->header('Content-Disposition', 'attachment; filename="things.csv.csv"')
+        return response(
+            $excel->create(
+                'things.csv',
+                function ($excel) use ($res) {
+                    $excel->sheet(
+                        'Things',
+                        function ($sheet) use ($res) {
+                            $sheet->fromArray($res, null, 'A1', false, false);
+                        }
+                    );
+                }
+            )->string('csv')
+        )
+            ->header('Content-Disposition', 'attachment; filename="things.csv"')
             ->header('Content-Type', 'application/csv; charset=UTF-8');
     }
 

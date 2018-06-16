@@ -13,7 +13,7 @@ class Codec extends Eloquent
      * @var array
      */
     protected $fillable = [
-        'name', 'code', 'user_id', 'project_id'
+        'name', 'code', 'user_id', 'project_id', 'global'
     ];
     protected $appends = [];
 
